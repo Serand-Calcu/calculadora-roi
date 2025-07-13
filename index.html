@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de ROI (COP)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .input-section, .results {
+            flex: 1;
+            min-width: 300px;
+        }
+        .chart-container {
+            width: 100%;
+            margin-top: 30px;
+        }
+        input, button, select {
+            padding: 10px;
+            margin: 8px 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #27AE60;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #1E8449;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .cop-badge {
+            background-color: #F1C40F;
+            color: #333;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+        .info-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: -5px;
+        }
+        .result-box {
+            background-color: #EAF2F8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Calculadora de ROI <span class="cop-badge">COP</span></h1>
+    <p class="info-text">Herramienta para calcular el Retorno sobre la Inversión en Pesos Colombianos</p>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>Datos de Inversión</h2>
+            <label for="ingresos">Ingresos generados (COP):</label>
+            <input type="number" id="ingresos" placeholder="Ej: 10.000.000" title="Ingresos totales atribuibles a la inversión">
+            
+            <label for="inversion">Costo de la inversión (COP):</label>
+            <input type="number" id="inversion" placeholder="Ej: 3.000.000" title="Costo total de la inversión (publicidad, equipos, etc.)">
+            
+            <label for="costos">Costos adicionales (COP):</label>
+            <input type="number" id="costos" placeholder="Ej: 1.500.000" value="0" title="Costos operativos asociados">
+            
+            <h2>Proyección Futura</h2>
+            <label for="meses">Meses a proyectar:</label>
+            <input type="number" id="meses" min="1" max="24" value="6">
+            
+            <label for="crecimiento">Tasa de crecimiento mensual (%):</label>
+            <input type="number" id="crecimiento" step="0.1" placeholder="Ej: 5" value="5">
+            
+            <button onclick="calcularROI()">Calcular ROI</button>
+        </div>
+        
+        <div class="results">
+            <h2>Resultados</h2>
+            <div class="result-box" id="resultado-actual">
+                <p><strong>ROI Actual:</strong> <span id="roi-actual">-</span></p>
+                <p><strong>Beneficio Neto:</strong> <span id="beneficio-neto">-</span></p>
+                <p id="interpretacion"></p>
+            </div>
+            
+            <h3>Proyección Mensual</h3>
+            <div id="tabla-proyeccion"></div>
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <canvas id="roiChart"></canvas>
+    </div>
+    
+    <script>
+        let roiChart = null;
+        
+        // Función para formatear números como COP
+        function formatoCOP(valor) {
+            if (isNaN(valor)) return "$ 0 COP";
+            return "$ " + Math.round(valor).toLocaleString('es-CO') + " COP";
+        }
+        
+        // Función para formatear porcentajes
+        function formatoPorcentaje(valor) {
+            return (valor * 100).toFixed(1) + "%";
+        }
+        
+        function calcularROI() {
+            // Obtener valores de entrada
+            const ingresos = parseFloat(document.getElementById('ingresos').value) || 0;
+            const inversion = parseFloat(document.getElementById('inversion').value) || 0;
+            const costos = parseFloat(document.getElementById('costos').value) || 0;
+            const meses = parseInt(document.getElementById('meses').value) || 6;
+            const crecimiento = (parseFloat(document.getElementById('crecimiento').value) || 0) / 100;
+            
+            // Validación básica
+            if (inversion <= 0) {
+                alert("El costo de inversión debe ser mayor a cero");
+                return;
+            }
+            
+            // Calcular ROI y beneficio neto
+            const beneficioNeto = ingresos - (inversion + costos);
+            const roi = beneficioNeto / (inversion + costos);
+            
+            document.getElementById('roi-actual').innerHTML = `<strong>${formatoPorcentaje(roi)}</strong>`;
+            document.getElementById('beneficio-neto').innerHTML = `<strong>${formatoCOP(beneficioNeto)}</strong>`;
+            
+            // Interpretación del ROI
+            const interpretacion = document.getElementById('interpretacion');
+            if (roi > 1) {
+                interpretacion.innerHTML = "✅ <strong>Excelente inversión</strong>: Estás generando ganancias significativas.";
+                interpretacion.style.color = "green";
+            } else if (roi > 0) {
+                interpretacion.innerHTML = "👍 <strong>Buena inversión</strong>: Estás obteniendo ganancias.";
+                interpretacion.style.color = "blue";
+            } else if (roi == 0) {
+                interpretacion.innerHTML = "➖ <strong>Punto de equilibrio</strong>: No hay ganancias ni pérdidas.";
+                interpretacion.style.color = "gray";
+            } else {
+                interpretacion.innerHTML = "❌ <strong>Pérdida</strong>: La inversión no está siendo rentable.";
+                interpretacion.style.color = "red";
+            }
+            
+            // Generar proyección
+            let tablaHTML = '<table><tr><th>Mes</th><th>Ingresos</th><th>Inversión</th><th>Beneficio</th><th>ROI</th></tr>';
+            const datosProyeccion = [];
+            
+            for (let i = 0; i < meses; i++) {
+                const mes = i + 1;
+                const factor = Math.pow(1 + crecimiento, i);
+                const ingresosProyectados = ingresos * factor;
+                const inversionProyectada = inversion * (i === 0 ? 1 : 0); // Solo considerar inversión inicial
+                const costosProyectados = costos * factor;
+                const beneficioProyectado = ingresosProyectados - (inversionProyectada + costosProyectados);
+                const roiProyectado = beneficioProyectado / (inversionProyectada + costosProyectados);
+                
+                datosProyeccion.push({
+                    mes: mes,
+                    ingresos: ingresosProyectados,
+                    inversion: inversionProyectada,
+                    costos: costosProyectados,
+                    beneficio: beneficioProyectado,
+                    roi: roiProyectado
+                });
+                
+                tablaHTML += `<tr>
+                    <td>${mes}</td>
+                    <td>${formatoCOP(ingresosProyectados)}</td>
+                    <td>${formatoCOP(inversionProyectada + costosProyectados)}</td>
+                    <td>${formatoCOP(beneficioProyectado)}</td>
+                    <td><strong>${formatoPorcentaje(roiProyectado)}</strong></td>
+                </tr>`;
+            }
+            
+            tablaHTML += '</table>';
+            document.getElementById('tabla-proyeccion').innerHTML = tablaHTML;
+            
+            // Generar gráfico
+            generarGrafico(datosProyeccion, roi);
+        }
+        
+        function generarGrafico(datosProyeccion, roiActual) {
+            const ctx = document.getElementById('roiChart').getContext('2d');
+            
+            // Destruir gráfico anterior si existe
+            if (roiChart) {
+                roiChart.destroy();
+            }
+            
+            const meses = datosProyeccion.map(item => `Mes ${item.mes}`);
+            const roiValues = datosProyeccion.map(item => item.roi * 100); // Convertir a porcentaje
+            
+            // Agregar el valor actual como Mes 0
+            meses.unshift('Actual');
+            roiValues.unshift(roiActual * 100);
+            
+            roiChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: meses,
+                    datasets: [{
+                        label: 'ROI (%)',
+                        data: roiValues,
+                        backgroundColor: 'rgba(39, 174, 96, 0.7)',
+                        borderColor: 'rgba(39, 174, 96, 1)',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `ROI: ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                line1: {
+                                    type: 'line',
+                                    yMin: 0,
+                                    yMax: 0,
+                                    borderColor: 'rgb(231, 76, 60)',
+                                    borderWidth: 2,
+                                    borderDash: [6, 6],
+                                    label: {
+                                        content: 'Umbral de rentabilidad',
+                                        enabled: true,
+                                        position: 'right'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'ROI (%)',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Periodo',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Ejemplo de datos iniciales para guiar al usuario
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('ingresos').value = '10000000';
+            document.getElementById('inversion').value = '3000000';
+            document.getElementById('costos').value = '1500000';
+        });
+    </script>
+</body>
+</html>
